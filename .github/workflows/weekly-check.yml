@@ -1,1 +1,44 @@
-name: מעקב תכניות שבועי on: schedule: - cron: '0 7 * * 0' workflow_dispatch: inputs: reason: description: 'סיבה להרצה ידנית' required: false default: 'בדיקה ידנית' jobs: check-plans: runs-on: ubuntu-latest steps: - uses: actions/checkout@v4 - uses: actions/cache@v4 with: path: statuses.json key: plan-statuses-${{ runner.os }} restore-keys: plan-statuses- - uses: actions/setup-python@v5 with: python-version: '3.11' - run: pip install requests - name: Run plan checker env: SHEETS_URL: ${{ secrets.SHEETS_URL }} PLAN_COL: ${{ secrets.PLAN_COL }} NAME_COL: ${{ secrets.NAME_COL }} HEADER_ROWS: ${{ secrets.HEADER_ROWS }} NOTIFY_EMAIL: ${{ secrets.NOTIFY_EMAIL }} GMAIL_USER: ${{ secrets.GMAIL_USER }} GMAIL_APP_PASS: ${{ secrets.GMAIL_APP_PASS }} SEND_FULL_SUMMARY: ${{ secrets.SEND_FULL_SUMMARY }} run: python check_plans.py - uses: actions/cache@v4 with: path: statuses.json key: plan-statuses-${{ runner.os }}-${{ github.run_number }} - uses: actions/upload-artifact@v4 with: name: statuses-${{ github.run_number }} path: statuses.json retention-days: 90
+name: weekly-plan-check
+
+on:
+  schedule:
+    - cron: '0 7 * * 0'
+  workflow_dispatch:
+
+jobs:
+  check-plans:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/cache@v4
+        with:
+          path: statuses.json
+          key: plan-statuses-${{ runner.os }}-${{ github.run_number }}
+          restore-keys: |
+            plan-statuses-${{ runner.os }}-
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - run: pip install requests
+
+      - name: Run plan checker
+        env:
+          SHEETS_URL: ${{ secrets.SHEETS_URL }}
+          PLAN_COL: ${{ secrets.PLAN_COL }}
+          NAME_COL: ${{ secrets.NAME_COL }}
+          HEADER_ROWS: ${{ secrets.HEADER_ROWS }}
+          NOTIFY_EMAIL: ${{ secrets.NOTIFY_EMAIL }}
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASS: ${{ secrets.GMAIL_APP_PASS }}
+          SEND_FULL_SUMMARY: ${{ secrets.SEND_FULL_SUMMARY }}
+        run: python check_plans.py
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: statuses-${{ github.run_number }}
+          path: statuses.json
+          retention-days: 90
